@@ -4,15 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
-
 
 #define BSP_CST328_RST_PIN 17
 #define BSP_CST328_INT_PIN 18
 
 #define CST328_LCD_TOUCH_MAX_POINTS (5)
-
 #define CST328_DEVICE_ADDR 0x1A
 
 typedef enum
@@ -66,7 +65,9 @@ typedef enum
     CST328_IC_CHECK_CODE_AND_BOOT_TIMER = 0xd1fc,
     CST328_IC_TYPE_AND_PROJECT_ID = 0xd200,
     CST328_IC_VERSION = 0xd204,
+
 } cst328_reg_t;
+
 
 typedef struct
 {
@@ -76,20 +77,26 @@ typedef struct
 
 } bsp_cst328_info_t;
 
+
 typedef struct
 {
-    uint8_t points; // Number of touch points
+    uint8_t points;
     bool read_data_done;
+
     struct
     {
-        uint16_t x;        /*!< X coordinate */
-        uint16_t y;        /*!< Y coordinate */
-        uint16_t pressure; /*!< pressure */
+        uint16_t x;
+        uint16_t y;
+        uint16_t pressure;
+
     } coords[CST328_LCD_TOUCH_MAX_POINTS];
-}bsp_cst328_data_t;
+
+} bsp_cst328_data_t;
+
 
 void bsp_cst328_init(bsp_cst328_info_t *cst328_info);
 void bsp_cst328_set_rotation(uint16_t rotation);
 bool bsp_cst328_get_touch_data(bsp_cst328_data_t *cst328_data);
 void bsp_cst328_read(void);
+
 #endif // __BSP_CST328_H__

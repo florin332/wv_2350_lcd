@@ -1,6 +1,9 @@
 #include "bsp_i2c.h"
 
 #include "hardware/i2c.h"
+#include "hardware/gpio.h"
+
+#include <cstring>
 
 
 void bsp_i2c_write(uint8_t device_addr, uint8_t *buffer, size_t len)

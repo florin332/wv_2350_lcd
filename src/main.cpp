@@ -3,6 +3,9 @@
 #include "hardware/spi.h"
 #include "hardware/gpio.h"
 
+#include "bsp/bsp_i2c.h"
+#include "bsp/bsp_cst328.h"
+
 // ============================================================
 // Waveshare RP2350 Touch LCD
 // ST7789T3 - independent LCD test
@@ -26,6 +29,11 @@
 
 #define LCD_WIDTH  240
 #define LCD_HEIGHT 320
+
+// ---------------- Touch CST328 ----------------
+#define TOUCH_WIDTH  LCD_WIDTH
+#define TOUCH_HEIGHT LCD_HEIGHT
+#define TOUCH_ROTATION 0
 
 // ============================================================
 // Low-level command
@@ -317,8 +325,8 @@ static void lcdFill(uint16_t color)
     // MSB, LSB, MSB, LSB...
     for (uint32_t i = 0; i < LCD_WIDTH * LCD_HEIGHT; i++)
     {
-        framebuffer[i * 2]     = hi;
-        framebuffer[i * 2 + 1] = lo;
+    framebuffer[i * 2] = lo;
+    framebuffer[i * 2 + 1] = hi;
     }
 
     lcdSetWindow(
@@ -401,6 +409,8 @@ static void lcdInit()
     lcdSetRotation(0);
 }
 
+
+
 // ============================================================
 // Arduino setup
 // ============================================================
@@ -409,66 +419,139 @@ void setup()
 {
     Serial.begin(115200);
 
-    delay(500);
+    // Initializare I2C pentru CST328
+    bsp_i2c_init();
 
-    Serial.println();
-    Serial.println("========================================");
-    Serial.println(" Waveshare RP2350 LCD TEST");
-    Serial.println(" ST7789T3 / SPI1");
-    Serial.println(" Pico SDK spi_write_blocking()");
-    Serial.println(" Based directly on Cdemo2350");
-    Serial.println("========================================");
-
-    Serial.println("SCLK = GP10");
-    Serial.println("MOSI = GP11");
-    Serial.println("CS   = GP13");
-    Serial.println("DC   = GP14");
-    Serial.println("RST  = GP15");
-    Serial.println("BL   = GP16");
-
-    Serial.println("SPI  = 80 MHz");
-    Serial.println("MODE = 3");
-    Serial.println("LCD  = 320 x 240");
-    Serial.println("RGB565");
-
+    // Initializare LCD
     lcdInit();
 
-    Serial.println("LCD initialized.");
+    // Initializare touch CST328
+    static bsp_cst328_info_t cst328_info;
+
+    cst328_info.width = LCD_WIDTH;
+    cst328_info.height = LCD_HEIGHT;
+    cst328_info.rotation = 0;
+
+    bsp_cst328_init(&cst328_info);
+
+    // Asteptam 10 secunde pentru deschiderea Serial Monitor
+    delay(10000);
+
+    Serial.println();
+    Serial.println("================================");
+    Serial.println("SVC_BOX - LCD / TOUCH TEST");
+    Serial.println("================================");
+    Serial.println("CST328 serial output started");
+    Serial.println();
 }
 
 // ============================================================
-// Test
+// Touch test
 // ============================================================
 
 void loop()
 {
-    Serial.println("RED");
+    // -------------------------------------------------
+// RGB TEST - 2 cicluri, 3 secunde / culoare
+// -------------------------------------------------
+static uint8_t rgb_step = 0;
+static uint8_t rgb_cycle = 0;
+static uint32_t rgb_last_change = 0;
+static bool rgb_started = false;
 
-    lcdFill(0xF800);
+if (rgb_cycle < 2)
+{
+    if (!rgb_started)
+    {
+        lcdFill(0xF800);       // RED
+        Serial.println("RGB: RED");
 
-    delay(1500);
+        rgb_started = true;
+        rgb_last_change = millis();
 
-    Serial.println("GREEN");
+        return;
+    }
 
-    lcdFill(0x07E0);
+    if (millis() - rgb_last_change >= 3000)
+    {
+        rgb_step++;
 
-    delay(1500);
+        if (rgb_step >= 5)
+        {
+            rgb_step = 0;
+            rgb_cycle++;
 
-    Serial.println("BLUE");
+            Serial.print("RGB CYCLE ");
+            Serial.print(rgb_cycle);
+            Serial.println(" COMPLETE");
 
-    lcdFill(0x001F);
+            if (rgb_cycle >= 2)
+            {
+                Serial.println("RGB TEST COMPLETE");
+                Serial.println("TOUCH TEST STARTED");
+                Serial.println();
+                return;
+            }
+        }
 
-    delay(1500);
+        switch (rgb_step)
+        {
+            case 0:
+                lcdFill(0xF800);       // RED
+                Serial.println("RGB: RED");
+                break;
 
-    Serial.println("WHITE");
+            case 1:
+                lcdFill(0x07E0);       // GREEN
+                Serial.println("RGB: GREEN");
+                break;
 
-    lcdFill(0xFFFF);
+            case 2:
+                lcdFill(0x001F);       // BLUE
+                Serial.println("RGB: BLUE");
+                break;
 
-    delay(1500);
+            case 3:
+                lcdFill(0xFFFF);       // WHITE
+                Serial.println("RGB: WHITE");
+                break;
 
-    Serial.println("BLACK");
+            case 4:
+                lcdFill(0x0000);       // BLACK
+                Serial.println("RGB: BLACK");
+                break;
+        }
 
-    lcdFill(0x0000);
+        rgb_last_change = millis();
+    }
 
-    delay(1500);
+    return;
+}
+
+// -------------------------------------------------
+// TOUCH TEST
+// -------------------------------------------------
+static bsp_cst328_data_t touch_data;
+
+bsp_cst328_read();
+
+if (bsp_cst328_get_touch_data(&touch_data))
+{
+    if (touch_data.points > 0)
+    {
+        Serial.print("TOUCH: points=");
+        Serial.print(touch_data.points);
+
+        Serial.print("  X=");
+        Serial.print(touch_data.coords[0].x);
+
+        Serial.print("  Y=");
+        Serial.print(touch_data.coords[0].y);
+
+        Serial.print("  pressure=");
+        Serial.println(touch_data.coords[0].pressure);
+    }
+}
+
+delay(5);
 }
